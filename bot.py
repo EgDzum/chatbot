@@ -94,24 +94,28 @@ def output(df, ind):
 def schedule_getter(message, text=None):
     msg = text if text else message.text.strip().lower()
     chat_id = message.chat.id
-    lang = user_dict[chat_id].language
-    schedule_day = df[
-        (df["День_недели"] == msg) & (df["Группа"] == user_dict[chat_id].group)
-    ]
+    try:
+        lang = user_dict[chat_id].language
+        schedule_day = df[
+                (df["День_недели"] == msg) & (df["Группа"] == user_dict[chat_id].group)
+                ]
+        special_subs = schedule_day["Предмет"].str.extract(
+            rf"({lang})", flags=re.IGNORECASE
+        )
+        if lang in special_subs[0].to_list():
+            indices = special_subs[special_subs.iloc[:, 0] != lang].index
+            schedule_day.drop(index=indices, inplace=True)
 
-    special_subs = schedule_day["Предмет"].str.extract(
-        rf"({lang})", flags=re.IGNORECASE
-    )
-    if lang in special_subs[0].to_list():
-        indices = special_subs[special_subs.iloc[:, 0] != lang].index
-        schedule_day.drop(index=indices, inplace=True)
+        lst = []
+        for ind in range(len(schedule_day)):
+            string = output(schedule_day, ind)
+            lst.append(string)
 
-    lst = []
-    for ind in range(len(schedule_day)):
-        string = output(schedule_day, ind)
-        lst.append(string)
+        bot.send_message(chat_id, "\n\n".join(lst))
 
-    bot.send_message(chat_id, "\n\n".join(lst))
+    except KeyError:
+        bot.send_message(chat_id, "К сожалению, не известен второй язык и номер группы. Пожалуйста, "
+                         "нажмите /start для авторизации")
 
 
 def from_en_to_rus_datetime(string):
